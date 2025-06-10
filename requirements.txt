@@ -1,11 +1,12 @@
 streamlit>=1.31.0
 python-dotenv>=1.0.0
 google-generativeai>=0.3.1,<0.7.0
-# Fix langchain version compatibility with pydantic
+# Use compatible versions of langchain packages
 langchain==0.0.267
+# Either use an older version of langchain-huggingface compatible with langchain-core 0.1.x
+langchain-huggingface==0.0.5
+# Or use a newer version of langchain-community compatible with langchain-core 0.3.x
 langchain-community==0.0.13
-# Fix version - using a version that actually exists in PyPI
-langchain-huggingface==0.1.0
 faiss-cpu>=1.7.4
 transformers>=4.36.2,<5.0.0
 sentence-transformers>=2.2.2
