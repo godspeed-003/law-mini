@@ -332,20 +332,66 @@ class DocumentProcessor:
                     """Embed query text."""
                     embedding = self.model.encode([text])
                     return embedding[0].tolist()
+                
+                def __call__(self, text):
+                    """Make the class callable for compatibility."""
+                    return self.embed_query(text)
             
             # Create the embedding instance
             embedding_function = SentenceTransformerEmbeddings(self.embeddings)
             
+            # Pre-compute embeddings to avoid FAISS issues
+            embeddings_list = embedding_function.embed_documents(chunks)
+            
+            # Create FAISS vector store using from_embeddings method
+            import numpy as np
+            embeddings_array = np.array(embeddings_list).astype('float32')
+            
+            # Create FAISS index manually
+            import faiss
+            dimension = embeddings_array.shape[1]
+            index = faiss.IndexFlatL2(dimension)
+            index.add(embeddings_array)
+            
+            # Create metadata list
+            metadatas = [{"chunk": i, "source": "uploaded_document"} for i in range(len(chunks))]
+            
             # Create FAISS vector store
-            vector_store = FAISS.from_texts(
-                texts=chunks,
-                embedding=embedding_function,
-                metadatas=[{"chunk": i} for i in range(len(chunks))]
+            vector_store = FAISS(
+                embedding_function=embedding_function,
+                index=index,
+                docstore=InMemoryDocstore({str(i): chunks[i] for i in range(len(chunks))}),
+                index_to_docstore_id={i: str(i) for i in range(len(chunks))}
             )
+            
             print("Successfully created vector store")
             return vector_store
         except Exception as e:
-            raise ValueError(f"Error creating vector store: {str(e)}")
+            # Fallback method using from_texts
+            try:
+                print("Trying fallback method...")
+                from langchain.docstore.in_memory import InMemoryDocstore
+                
+                class SimpleEmbeddings:
+                    def __init__(self, model):
+                        self.model = model
+                    
+                    def embed_documents(self, texts):
+                        return self.model.encode(texts).tolist()
+                    
+                    def embed_query(self, text):
+                        return self.model.encode([text])[0].tolist()
+                
+                simple_embeddings = SimpleEmbeddings(self.embeddings)
+                vector_store = FAISS.from_texts(
+                    texts=chunks,
+                    embedding=simple_embeddings,
+                    metadatas=[{"chunk": i} for i in range(len(chunks))]
+                )
+                print("Successfully created vector store using fallback method")
+                return vector_store
+            except Exception as fallback_error:
+                raise ValueError(f"Error creating vector store: {str(e)}, Fallback error: {str(fallback_error)}")
 
     def generate_alternate_phrasings(self, user_question: str) -> list:
         """Use Gemini to generate alternate phrasings/meanings for the user query."""
