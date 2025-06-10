@@ -21,8 +21,17 @@ if version.parse(pydantic.__version__).major >= 2:
 # Load environment variables
 load_dotenv()
 
-# Get API key from environment variable
-api_key = os.getenv('GEMINI_API_KEY')
+# Get API key from Streamlit secrets
+api_key = st.secrets["GEMINI_API_KEY"]
+
+# For Google Cloud Vision credentials
+import json
+gcp_creds = st.secrets["gcp_service_account"]
+credentials_json = json.dumps(gcp_creds)
+# Create temporary credentials file
+with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json') as f:
+    json.dump(gcp_creds, f)
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = f.name
 
 # Set page config
 st.set_page_config(
