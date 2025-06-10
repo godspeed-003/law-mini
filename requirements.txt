@@ -1,11 +1,12 @@
 streamlit>=1.31.0
 python-dotenv>=1.0.0
-google-generativeai>=0.3.1
-langchain>=0.1.0
-langchain-community>=0.0.13
-langchain-huggingface>=0.0.6
+google-generativeai>=0.3.1,<0.7.0
+# Fix langchain version compatibility with pydantic
+langchain==0.0.267
+langchain-community==0.0.13
+langchain-huggingface==0.0.6
 faiss-cpu>=1.7.4
-transformers>=4.36.2
+transformers>=4.36.2,<5.0.0
 sentence-transformers>=2.2.2
 torch>=2.1.2
 huggingface-hub>=0.20.3
@@ -21,5 +22,4 @@ Pillow>=10.2.0
 google-cloud-vision>=3.5.0
 packaging>=23.2
 # Strict pydantic version constraint required by LangChain
-pydantic<2.0.0
-# Remove PyMuPDF to avoid deployment issues
+pydantic==1.10.8
