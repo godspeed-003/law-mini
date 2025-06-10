@@ -31,6 +31,7 @@ except ImportError:
 
 import hashlib
 import pickle
+from langchain.embeddings.base import Embeddings
 
 # Fix torch/transformers imports
 try:
@@ -290,11 +291,10 @@ class DocumentProcessor:
         all_texts = []
         for file_path in file_paths:
             try:
-                print(f"Processing file: {file_path}")  # Debug log
+                print(f"Processing file: {file_path}")
                 text = self.read_file(file_path)
-                # Remove minimum length requirement, just check if there's any content
                 if text and text.strip():
-                    print(f"Found {len(text.split())} words in {file_path}")  # Debug log
+                    print(f"Found {len(text.split())} words in {file_path}")
                     all_texts.append(text)
                 else:
                     print(f"Warning: No content found in {file_path}")
@@ -302,51 +302,47 @@ class DocumentProcessor:
                 print(f"Error processing {file_path}: {str(e)}")
 
         if not all_texts:
-            print("No valid content found in any files. File contents:")  # Debug log
-            for file_path in file_paths:
-                try:
-                    with open(file_path, 'r', encoding='utf-8') as f:
-                        print(f"\n{file_path} first 100 chars: {f.read(100)}")
-                except:
-                    print(f"Could not read {file_path}")
             raise ValueError("No valid text content found in any of the documents")
 
         # Split texts into chunks
         chunks = []
         for text in all_texts:
             text_chunks = self.text_splitter.split_text(text)
-            # Reduce minimum chunk size to 1 word
             valid_chunks = [chunk for chunk in text_chunks if len(chunk.split()) >= 1]
             chunks.extend(valid_chunks)
-            print(f"Created {len(valid_chunks)} chunks from text of length {len(text)}")  # Debug log
+            print(f"Created {len(valid_chunks)} chunks from text of length {len(text)}")
 
         if not chunks:
             raise ValueError("No valid chunks created from the documents")
 
         try:
-            print(f"Creating embeddings for {len(chunks)} chunks...")  # Debug log
-            # Use sentence-transformers directly
-            embeddings = self.embeddings.encode(chunks)
+            print(f"Creating embeddings for {len(chunks)} chunks...")
             
-            # Create a custom embedding class for FAISS
-            class CustomEmbeddings:
+            # Create a proper embedding class that inherits from langchain Embeddings
+            class SentenceTransformerEmbeddings(Embeddings):
                 def __init__(self, model):
                     self.model = model
                 
                 def embed_documents(self, texts):
-                    return self.model.encode(texts).tolist()
+                    """Embed search docs."""
+                    embeddings = self.model.encode(texts)
+                    return embeddings.tolist()
                 
                 def embed_query(self, text):
-                    return self.model.encode([text])[0].tolist()
+                    """Embed query text."""
+                    embedding = self.model.encode([text])
+                    return embedding[0].tolist()
             
-            custom_embeddings = CustomEmbeddings(self.embeddings)
+            # Create the embedding instance
+            embedding_function = SentenceTransformerEmbeddings(self.embeddings)
             
+            # Create FAISS vector store
             vector_store = FAISS.from_texts(
                 texts=chunks,
-                embedding=custom_embeddings,
+                embedding=embedding_function,
                 metadatas=[{"chunk": i} for i in range(len(chunks))]
             )
-            print("Successfully created vector store")  # Debug log
+            print("Successfully created vector store")
             return vector_store
         except Exception as e:
             raise ValueError(f"Error creating vector store: {str(e)}")

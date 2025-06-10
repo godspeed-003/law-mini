@@ -26,13 +26,17 @@ api_key = st.secrets["GEMINI_API_KEY"]
 
 # For Google Cloud Vision credentials
 import json
-gcp_creds = st.secrets["gcp_service_account"]
-# Convert AttrDict to regular dict for JSON serialization
-gcp_creds_dict = dict(gcp_creds)
-# Create temporary credentials file
-with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json') as f:
-    json.dump(gcp_creds_dict, f)
-    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = f.name
+try:
+    gcp_creds = st.secrets["gcp_service_account"]
+    # Convert AttrDict to regular dict for JSON serialization
+    gcp_creds_dict = {key: value for key, value in gcp_creds.items()}
+    # Create temporary credentials file
+    with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json') as f:
+        json.dump(gcp_creds_dict, f)
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = f.name
+except Exception as e:
+    st.error(f"Error setting up Google Cloud credentials: {e}")
+    st.stop()
 
 # Set page config
 st.set_page_config(

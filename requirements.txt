@@ -24,3 +24,5 @@ packaging>=23.2
 pydantic==1.10.8
 # Additional requirements for tiktoken and other dependencies
 tiktoken>=0.4.0
+# langchain embeddings dependency
+langchain[embeddings]==0.0.267
