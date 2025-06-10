@@ -6,9 +6,10 @@ langchain-community>=0.0.13
 langchain-huggingface>=0.0.6
 faiss-cpu>=1.7.4
 transformers>=4.36.2
+sentence-transformers>=2.2.2
 torch>=2.1.2
 huggingface-hub>=0.20.3
-PyMuPDF>=1.23.8
+# Use PyPDF2 for PDF handling (more deployment-friendly)
 PyPDF2>=3.0.1
 python-docx>=1.0.1
 pandas>=2.1.4
@@ -18,13 +19,7 @@ python-pptx>=0.6.22
 PyYAML>=6.0.1
 Pillow>=10.2.0
 google-cloud-vision>=3.5.0
-google-cloud-storage>=2.14.0
 packaging>=23.2
+# Strict pydantic version constraint required by LangChain
 pydantic<2.0.0
-requests
-# For Gemini API
-google-generativeai
-# For CORS and web
-flask-cors
-# For image conversion (pdf2image)
-poppler-utils
+# Remove PyMuPDF to avoid deployment issues

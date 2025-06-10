@@ -4,7 +4,7 @@ import google.generativeai as gen_ai
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings  # Updated import
 from langchain_community.vectorstores import FAISS
-import PyPDF2  # We'll use this as fallback
+import PyPDF2  # We'll use only this for PDF handling
 from docx import Document
 import pandas as pd
 import sys
@@ -178,44 +178,27 @@ class DocumentProcessor:
             raise ValueError(f"Error reading file {file_path}: {str(e)}")
 
     def _read_pdf_natural_flow(self, file_path: str) -> str:
-        """Enhanced PDF reader with fallbacks."""
+        """Enhanced PDF reader using only PyPDF2."""
         try:
-            if PYMUPDF_AVAILABLE:
-                return self._read_pdf_with_mupdf(file_path)
-            else:
-                return self._read_pdf_with_pypdf2(file_path)
-        except Exception as e:
-            print(f"PDF reading error: {e}, trying PyPDF2 fallback...")
             return self._read_pdf_with_pypdf2(file_path)
-
-    def _read_pdf_with_mupdf(self, file_path: str) -> str:
-        """Use PyMuPDF if available."""
-        try:
-            doc = fitz.Document(file_path)  # Use Document instead of open
-            text_parts = []
-            for page_num in range(doc.page_count):
-                page = doc[page_num]  # Use indexing instead of load_page
-                text = page.get_text()
-                if text.strip():
-                    text_parts.append(text.strip())
-            doc.close()
-            return "\n\n".join(text_parts)
         except Exception as e:
-            raise ValueError(f"PyMuPDF reading failed: {str(e)}")
+            print(f"PDF reading error: {e}")
+            return "Error reading PDF file"
 
     def _read_pdf_with_pypdf2(self, file_path: str) -> str:
-        """Fallback to PyPDF2."""
+        """Read PDF with PyPDF2."""
         try:
             with open(file_path, "rb") as file:
                 reader = PyPDF2.PdfReader(file)
                 text_parts = []
                 for page in reader.pages:
                     text = page.extract_text()
-                    if text.strip():
+                    if text and text.strip():
                         text_parts.append(text.strip())
-                return "\n\n".join(text_parts)
+                return "\n\n".join(text_parts) if text_parts else "No text content found in PDF"
         except Exception as e:
-            raise ValueError(f"PyPDF2 reading failed: {str(e)}")
+            print(f"PyPDF2 reading failed: {str(e)}")
+            return f"Error reading PDF: {str(e)}"
 
     def _read_docx(self, file_path: str) -> str:
         doc = Document(file_path)
