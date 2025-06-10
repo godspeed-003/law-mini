@@ -2,7 +2,8 @@ import os
 from typing import List, Dict, Any
 import google.generativeai as gen_ai  
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_huggingface import HuggingFaceEmbeddings  # Updated import
+# Remove langchain-huggingface import and use sentence-transformers directly
+from sentence_transformers import SentenceTransformer
 from langchain_community.vectorstores import FAISS
 import PyPDF2  # We'll use only this for PDF handling
 from docx import Document
@@ -46,8 +47,8 @@ class DocumentProcessor:
         self.api_key = api_key
         gen_ai.configure(api_key=api_key)  # Configure Gemini
         self.model = gen_ai.GenerativeModel('models/gemini-2.0-flash')
-        # Use the multilingual-e5-small embedding model for better multilingual/document retrieval
-        self.embeddings = HuggingFaceEmbeddings(model_name="intfloat/multilingual-e5-small")
+        # Use sentence-transformers directly instead of langchain-huggingface
+        self.embeddings = SentenceTransformer('intfloat/multilingual-e5-small')
         self.text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=2000,
             chunk_overlap=400,
@@ -310,7 +311,7 @@ class DocumentProcessor:
                     print(f"Could not read {file_path}")
             raise ValueError("No valid text content found in any of the documents")
 
-        # Split texts into chunks with minimum size decreased
+        # Split texts into chunks
         chunks = []
         for text in all_texts:
             text_chunks = self.text_splitter.split_text(text)
@@ -324,14 +325,25 @@ class DocumentProcessor:
 
         try:
             print(f"Creating embeddings for {len(chunks)} chunks...")  # Debug log
-            # Create vector store with explicit error handling
-            embeddings = self.embeddings.embed_documents(chunks[:1])  # Test with first chunk
-            if not embeddings or len(embeddings[0]) == 0:
-                raise ValueError("Failed to generate embeddings")
+            # Use sentence-transformers directly
+            embeddings = self.embeddings.encode(chunks)
+            
+            # Create a custom embedding class for FAISS
+            class CustomEmbeddings:
+                def __init__(self, model):
+                    self.model = model
                 
+                def embed_documents(self, texts):
+                    return self.model.encode(texts).tolist()
+                
+                def embed_query(self, text):
+                    return self.model.encode([text])[0].tolist()
+            
+            custom_embeddings = CustomEmbeddings(self.embeddings)
+            
             vector_store = FAISS.from_texts(
                 texts=chunks,
-                embedding=self.embeddings,
+                embedding=custom_embeddings,
                 metadatas=[{"chunk": i} for i in range(len(chunks))]
             )
             print("Successfully created vector store")  # Debug log
